@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+from mastodon import Mastodon
+from bs4 import BeautifulSoup
+from base64 import b64encode
+from pathlib import Path
+import json, os, sys, argparse
+
+#                      _                  _   
+#  _ __ ___   __ _ ___| |_ ___   ___ __ _| |_ 
+# | '_ ` _ \ / _` / __| __/ _ \ / __/ _` | __|
+# | | | | | | (_| \__ \ || (_) | (_| (_| | |_ 
+# |_| |_| |_|\__,_|___/\__\___/ \___\__,_|\__|
+#                                            
+# mastocat, a script to concatenate all toots
+#
+# HOWTO:
+#  - apt install python3-mastodon python3-bs4 (or guess your way through pip)
+#  - Settings -> New Application -> Name: mastocat -> Scopes: read -> Submit
+#  - Carefully memorize "Your access token".
+#  - mastocat --site https://<your mastodon host> --token <your access token>
+#
+# TODO/LIMITATIONS:
+#  - html-to-text conversion from bs4 lacks perfection.
+#  - Could cache raw content, for later improvent in html-to-text conversion.
+#  - Author's idea of caching is not all that impressive anyway.
+#  - If toots seem to be missing, DELETE CACHE. It's the only way to be sure.
+#  - Maybe extend to favs.
+#  - No idea what really happens when API limits get hit.
+#
+#
+# This is free and unencumbered software released into the public domain.
+#
+# Anyone is free to copy, modify, publish, use, compile, sell, or
+# distribute this software, either in source code form or as a compiled
+# binary, for any purpose, commercial or non-commercial, and by any
+# means.
+#
+# In jurisdictions that recognize copyright laws, the author or authors
+# of this software dedicate any and all copyright interest in the
+# software to the public domain. We make this dedication for the benefit
+# of the public at large and to the detriment of our heirs and
+# successors. We intend this dedication to be an overt act of
+# relinquishment in perpetuity of all present and future rights to this
+# software under copyright law.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# For more information, please refer to <http://unlicense.org/>
+#
+
+parser = argparse.ArgumentParser(description = 'mastocat, a script to concatenate all toots')
+parser.add_argument('--site', help = 'Your Mastodon host', required = True)
+parser.add_argument('--token', help = 'Your access token', required = True)
+args = parser.parse_args()
+
+# https://stackoverflow.com/a/14981125/263310
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+mastodon = Mastodon(
+	access_token = args.token,
+	api_base_url = args.site
+)
+
+account_id = mastodon.me().id
+account_url = mastodon.me().url
+account_b64 = b64encode(account_url.encode()).decode()
+cache_dir = f'{Path.home()}/.cache/mastocat/'
+cache_file = f'{cache_dir}{account_b64}.json'
+if not os.path.isdir(cache_dir):
+	os.makedirs(cache_dir)
+
+# Read cache if it exists
+try:
+	eprint('Reading cached toots.')
+	cached_data = {}
+	f = open(cache_file, 'r')
+	# Danger: Keys in JSON are alwas strings
+	for key, value in json.load(f).items():
+		cached_data[int(key)] = value
+	f.close
+except Exception as e:
+	eprint(e)
+	eprint('Starting without cached toots.')
+	cached_data = {}
+
+# Find highest cached toot ID
+try:
+	max_cached_id = max(cached_data.keys())
+except:
+	max_cached_id = None
+
+eprint(f'Retrieving Toots since highest cached toot ID: {max_cached_id}')
+
+got_id = None
+while True:
+	eprint(len(cached_data.items()))
+	toots = mastodon.account_statuses(account_id, max_id = got_id, min_id = max_cached_id)
+	if toots:
+		for toot in toots:
+			cached_data[toot.id] = {}
+			cached_data[toot.id]['url'] = toot.url
+			if toot.reblog:
+				text = BeautifulSoup(toot.reblog.content, features="lxml").get_text()
+				cached_data[toot.id]['content'] = f'[Boost from {toot.reblog.account.acct}] {text}'
+			else:
+				text = BeautifulSoup(toot.content, features="lxml").get_text()
+				cached_data[toot.id]['content'] = text
+			f = open(cache_file, 'w')
+			json.dump(cached_data, f, indent=2)
+			f.close
+			got_id = toot.id
+	else:
+		break
+
+for id, toot in sorted(cached_data.items()):
+	print(f'{toot["content"]} | {toot["url"]}')
+
+eprint(f'Cached toots are in: {cache_file}')
