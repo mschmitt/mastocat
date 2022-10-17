@@ -14,9 +14,11 @@ import json, os, sys, argparse
 # mastocat, a script to concatenate all toots
 #
 # HOWTO:
-#  - apt install python3-mastodon python3-bs4 (or guess your way through pip)
+# - On your mastodon host:
 #  - Settings -> New Application -> Name: mastocat -> Scopes: read -> Submit
 #  - Carefully memorize "Your access token".
+# - Locally:
+#  - apt install python3-mastodon python3-bs4 (or guess your way through pip)
 #  - mastocat --site https://<your mastodon host> --token <your access token>
 #
 # TODO/LIMITATIONS:
