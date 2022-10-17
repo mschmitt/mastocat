@@ -23,7 +23,7 @@ import json, os, sys, argparse
 #
 # TODO/LIMITATIONS:
 #  - html-to-text conversion from bs4 lacks perfection.
-#  - Could cache raw content, for later improvent in html-to-text conversion.
+#  - Could cache raw content, for later improvement in html-to-text conversion.
 #  - Author's idea of caching is not all that impressive anyway.
 #  - If toots seem to be missing, DELETE CACHE. It's the only way to be sure.
 #  - Maybe extend to favs.
