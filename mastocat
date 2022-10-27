@@ -96,16 +96,30 @@ except Exception as e:
 try:
 	max_cached_id = max(cached_data.keys())
 except:
-	max_cached_id = None
+	max_cached_id = 0
 
 eprint(f'Retrieving Toots since highest cached toot ID: {max_cached_id}')
 
-got_id = None
+caught_up = False
+lowest_id_seen = None
 while True:
-	eprint(len(cached_data.items()))
-	toots = mastodon.account_statuses(account_id, max_id = got_id, min_id = max_cached_id)
+	# account_statuses() returns newest statuses first
+	# We stupidly walk back until we seen a toot ID that's already in our cache.
+	eprint(f'{len(cached_data.items())} items in cache.')
+	if caught_up:
+		break
+	elif lowest_id_seen:
+		eprint(f'Requesting toots before toot ID: {lowest_id_seen}')
+	else:
+		eprint(f'Requesting toots from top of the timeline.')
+	toots = mastodon.account_statuses(account_id, limit = 100, max_id = lowest_id_seen)
 	if toots:
 		for toot in toots:
+			if toot.id in cached_data.keys():
+				# Toot is already cached. Nothing more to do.
+				caught_up = True
+				eprint('Caught up with all toots, done.')
+				break
 			cached_data[toot.id] = {}
 			cached_data[toot.id]['url'] = toot.url
 			if toot.reblog:
@@ -115,9 +129,12 @@ while True:
 				text = BeautifulSoup(toot.content, features="lxml").get_text()
 				cached_data[toot.id]['content'] = text
 			f = open(cache_file, 'w')
-			json.dump(cached_data, f, indent=2)
+			json.dump(cached_data, f, indent=2) 
 			f.close
-			got_id = toot.id
+			if lowest_id_seen == None:
+				lowest_id_seen = toot.id
+			if toot.id < lowest_id_seen:
+				lowest_id_seen = toot.id
 	else:
 		break
 
