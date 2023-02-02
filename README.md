@@ -9,4 +9,4 @@ mastocat, a script to concatenate all toots
 
 See the mastocat script for information.
 
-Handcrafted by <a href="https://mastodon.online/@unixtippse" rel="me">@unixtippse</a>.
+Handcrafted by <a href="https://mastodon.online/@unixtippse" rel="me nofollow">@unixtippse</a>.
