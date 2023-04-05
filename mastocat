@@ -121,6 +121,7 @@ while True:
 				eprint('Caught up with all toots, done.')
 				break
 			cached_data[toot.id] = {}
+			cached_data[toot.id]['datetime'] = toot.created_at.strftime('%Y-%m-%d %H:%M:%S %Z')
 			cached_data[toot.id]['url'] = toot.url
 			if toot.reblog:
 				text = BeautifulSoup(toot.reblog.content, features="lxml").get_text()
@@ -139,6 +140,9 @@ while True:
 		break
 
 for id, toot in sorted(cached_data.items()):
-	print(f'{toot["content"]} | {toot["url"]}')
+	if 'datetime' in toot.keys():
+		print(f'{toot["datetime"]} | {toot["content"]} | {toot["url"]}')
+	else:
+		print(f'{toot["content"]} | {toot["url"]}')
 
 eprint(f'Cached toots are in: {cache_file}')
